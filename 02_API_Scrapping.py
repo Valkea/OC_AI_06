@@ -8,6 +8,8 @@ import argparse
 
 import pandas as pd
 
+from utils import progress_monitor
+
 # IMPORT Yelp API Key
 with open("secrets.txt") as f:
     API_KEY = f.readline().strip()
@@ -64,6 +66,10 @@ def get_business_reviews(id, reviews, max_reviews, verbose=0):
 
         if verbose > 0:
             print(f"Num:{len(reviews)} Text:{review['text']} Rating:{review['rating']}")
+        else:
+            progress_monitor.items_update(
+                len(reviews), max_reviews, f"Rating: {rate} Text: {text}"
+            )
 
         if len(reviews) >= max_reviews:
             raise Exception()
@@ -95,6 +101,9 @@ def get_reviews(business_location, num_reviews, verbose=0):
         except Exception:
             break
 
+    if verbose == 0:
+        progress_monitor.complete()
+
     return reviews
 
 
@@ -117,18 +126,30 @@ def main(**kwargs):
         save_path = kwargs["save_path"]
 
     if kwargs["verbose"] is None:
-        verbose = 1
+        verbose = 0
     else:
         verbose = int(kwargs["verbose"])
 
     print(
-        f"location:{location}, num_reviews:{num_reviews}, save_path:{save_path}, verbose:{verbose}"
+        f"location:{location}, num_reviews:{num_reviews}, save_path:{save_path}, verbose:{verbose}\n"
     )
+
+    if verbose == 0:
+        progress_monitor.items_init(num_reviews, "Connecting to API...")
 
     reviews = get_reviews(location, num_reviews, verbose=verbose)
     reviews_df = pd.DataFrame(reviews)
     reviews_df.to_csv(save_path, index=False)
-    print(f"Exporting {reviews_df.shape} to {save_path}")
+
+    terminal_size = os.get_terminal_size()
+    size = terminal_size.columns - 1
+    print(
+        "\n"
+        + f" Exporting dataset of shape {reviews_df.shape} to {save_path} ".center(
+            size, "*"[:size]
+        ),
+        "\n",
+    )
 
 
 if __name__ == "__main__":
