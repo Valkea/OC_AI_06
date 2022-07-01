@@ -8,6 +8,7 @@ import joblib
 import spacy
 import spacy_fastlang
 import streamlit as st
+from streamlit_option_menu import option_menu
 import pandas as pd
 import numpy as np
 
@@ -20,7 +21,9 @@ nlp = spacy.load("en_core_web_sm")
 nlp.add_pipe("language_detector")
 
 # Load the LDA model and the associated dictionnary
-(dictionary, lda_model, topic_labels) = joblib.load(os.path.join("data", "lda.pipeline"))
+(dictionary, lda_model, topic_labels) = joblib.load(
+    os.path.join("data", "lda.pipeline")
+)
 
 
 # Define required functions
@@ -139,10 +142,7 @@ def print_topics(preds, input_df):
     for i in range(len(preds)):
         print_txt = input_df.text.iloc[i].replace("\n", " ")
 
-        scores = pd.DataFrame(
-                preds[i],
-                columns=["index", "score"]
-                ).set_index("index")
+        scores = pd.DataFrame(preds[i], columns=["index", "score"]).set_index("index")
 
         st.write(f"---  \n#### Input #{i+1}")
         st.write(f"##### Texte avant traitement:  \n> {print_txt}")
@@ -152,14 +152,35 @@ def print_topics(preds, input_df):
             st.write("##### Texte après traitement:")
             st.write(f"> {input_df.lemmas.iloc[i]}")
 
-            for j, score in enumerate(scores.sort_values("score", ascending=False).iterrows()):
+            for j, score in enumerate(
+                scores.sort_values("score", ascending=False).iterrows()
+            ):
                 st.write(f"##### Sujet #{j+1}:")
                 st.write(f"> {score[1][0]*100:.2f}% : {topic_labels[score[0]]}")
+
+
+def get_top_id(row):
+    """TODO"""
+
+    max_id = None
+    max_va = 0
+    for topics in row:
+        cur_id = topics[0]
+        cur_va = topics[1]
+        if cur_va > max_va:
+            max_va = cur_va
+            max_id = cur_id
+
+    if math.isclose(max_va, 0.33333, rel_tol=1e-1):
+        return "None"
+    else:
+        return f"{topic_labels[max_id]} ({max_va*100.0:.2f}%)"
 
 
 ##################################################
 # Streamlit design
 ##################################################
+
 
 st.set_page_config(
     page_title="Démo Avis Resto",
@@ -176,82 +197,92 @@ st.set_page_config(
 st.title(
     'Démonstration des nouvelles fonctionnalités de collaboration pour "Avis Resto"'
 )
-st.write("---  \n## Topic Modelling")
-
-# --- Single Topic Modelling ---
-st.write("### Methode 1: saisie manuelle")
-txt = st.text_area(
-    "Veuillez saisir (en anglais) une review négative dont vous aimeriez connaitre le sujet"
-)
-
-if txt is not None and txt != "":
-    predict_topics([txt])
 
 
-# --- Batch Topic Modelling ---
-st.write("### Methode 2: traitement en serie")
-uploaded_file = st.file_uploader(
-    "Choisissez un fichier TXT contenant une review par ligne.", type=["txt","csv"]
-)
-if uploaded_file is not None:
-    # To read file as bytes:
-    texts = []
-    if uploaded_file.type == "text/csv":
-        input_df = pd.read_csv(uploaded_file)
-        print(input_df)
-        columns = input_df.columns
+def show_topic_modelling():
 
-        def get_top_id(row):
-            max_id = None
-            max_va = 0
-            for topics in row:
-                cur_id = topics[0]
-                cur_va = topics[1]
-                if cur_va > max_va:
-                    max_va = cur_va
-                    max_id = cur_id
-            # print("max:", max_id, max_va)
+    # --- Single Topic Modelling ---
+    st.write("### Methode 1: saisie manuelle")
+    txt = st.text_area(
+        "Veuillez saisir (en anglais) une review négative dont vous aimeriez connaitre le sujet"
+    )
 
-            if math.isclose(max_va, 0.33333, rel_tol=1e-1):
-                return "None"
-            else:
-                return f"{topic_labels[max_id]} ({max_va*100.0:.2f}%)"
+    if txt is not None and txt != "":
+        predict_topics([txt])
 
-        input_df["lemmas"] = input_df.text.apply(preprocessing)
-        input_df["filtered"] = input_df.lemmas.apply(is_filtered_docs)
-        input_bow = [dictionary.doc2bow(doc) for doc in input_df.lemmas]
-        input_pred = pd.DataFrame(lda_model[input_bow])
-        input_pred['main_topic'] = input_pred.apply(get_top_id, axis=1)
-        # st.dataframe(input_df)
-        # st.dataframe(input_pred)
+    # --- Batch Topic Modelling ---
 
-        export_df = input_df[columns]
-        export_df['main_topic'] = input_pred['main_topic']
-        st.dataframe(export_df)
+    st.write("### Methode 2: traitement en serie")
+    uploaded_file = st.file_uploader(
+        "Choisissez un fichier TXT contenant une review par ligne.", type=["txt", "csv"]
+    )
+    if uploaded_file is not None:
+        # To read file as bytes:
+        texts = []
+        if uploaded_file.type == "text/csv":
+            input_df = pd.read_csv(uploaded_file)
+            print(input_df)
+            columns = input_df.columns
 
-        st.download_button(
-            "Télécharger ce nouveau jeu de données",
-            export_df.to_csv(index=False),
-            "file.csv",
-            "text/csv",
-            key='download-csv'
-        )
+            with st.spinner("Traitement..."):
 
-    elif uploaded_file.type == "text/plain":
-        for line in uploaded_file:
-            txt = line.decode("utf-8")
-            texts.append(txt)
+                input_df["lemmas"] = input_df.text.apply(preprocessing)
+                input_df["filtered"] = input_df.lemmas.apply(is_filtered_docs)
+                input_bow = [dictionary.doc2bow(doc) for doc in input_df.lemmas]
+                input_pred = pd.DataFrame(lda_model[input_bow])
+                input_pred["main_topic"] = input_pred.apply(get_top_id, axis=1)
+                # st.dataframe(input_df)
+                # st.dataframe(input_pred)
 
-        predict_topics(texts)
+                export_df = input_df[columns]
+                export_df["main_topic"] = input_pred["main_topic"]
+                st.dataframe(export_df)
 
-st.write("---  \n## Classification des images utilisateur")
+                st.download_button(
+                    "Télécharger ce nouveau jeu de données",
+                    export_df.to_csv(index=False),
+                    "file.csv",
+                    "text/csv",
+                    key="download-csv",
+                )
 
-uploaded_files = st.file_uploader(
-    "Choissisez une ou plusieurs images à analyser", accept_multiple_files=True
-)
-for uploaded_file in uploaded_files:
-    bytes_data = uploaded_file.read()
-    # st.write("filename:", uploaded_file.name)
-    # st.write(bytes_data)
-    st.image(bytes_data)
-    st.write("CLASSIFICATION:", "[pred text]")
+        elif uploaded_file.type == "text/plain":
+            for line in uploaded_file:
+                txt = line.decode("utf-8")
+                texts.append(txt)
+
+            with st.spinner("Traitement..."):
+                predict_topics(texts)
+
+
+def show_image_classification():
+
+    uploaded_files = st.file_uploader(
+        "Choissisez une ou plusieurs images à analyser",
+        accept_multiple_files=True,
+        type=["jpg", "png"],
+    )
+    for uploaded_file in uploaded_files:
+        bytes_data = uploaded_file.read()
+        # st.write("filename:", uploaded_file.name)
+        # st.write(bytes_data)
+        st.image(bytes_data)
+        st.write("CLASSIFICATION:", "[pred text]")
+
+
+# --- Side bar ---
+
+with st.sidebar:
+    selected = option_menu(
+        menu_title="Menu",
+        options=["Topic Modelling", "Image Classification"],
+        icons=["newspaper", "camera"],
+        default_index=0,
+    )
+
+if selected == "Topic Modelling":
+    st.write("---  \n## Topic Modelling")
+    show_topic_modelling()
+else:
+    st.write("---  \n## Classification des images utilisateur")
+    show_image_classification()
