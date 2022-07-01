@@ -1,27 +1,48 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 import os
+import math
 import joblib
 
 import spacy
 import spacy_fastlang
 import streamlit as st
 import pandas as pd
+import numpy as np
 
-##########################################
+##################################################
 # Topic Modelling : functions & variables
-##########################################
+##################################################
 
 # Initialize the spacy nlp pipeline
 nlp = spacy.load("en_core_web_sm")
 nlp.add_pipe("language_detector")
 
 # Load the LDA model and the associated dictionnary
-(dictionary, lda_model, sujets) = joblib.load(os.path.join("data", "lda.pipeline"))
+(dictionary, lda_model, topic_labels) = joblib.load(os.path.join("data", "lda.pipeline"))
+
 
 # Define required functions
 def preprocessing(text, except_words=[]):
     """
-    This function aims to prepare the provided text for the model.
-    It processes only 1 text at a time and hence it needs to be called via myDF.apply(preprocessing)
+    This function aims to prepare the provided text for the model. The various
+    steps will clean the text and eventually return the extracted lemmas.
+
+    It processes only 1 text at a time and hence it needs to be called via
+    myDF.apply(preprocessing) (because it is more efficient than nlp.pipe)
+
+    Parameters
+    ----------
+    text: str
+        The text to preprocess in order to extract the lemmas
+    except_words : list
+        The list of the potential extra words we dont want to see in the corpus
+
+    Returns
+    -------
+    list:
+        The list of the lemmas extrated from the provided text
     """
 
     # suppression des majuscules
@@ -61,14 +82,38 @@ def preprocessing(text, except_words=[]):
     ]
 
     return tokens
-    # return tokens if len(tokens) > 1 else "FILTERED"
 
 
 def is_filtered_docs(lemmas):
+    """
+    This function returns a boolean indicating if the provided
+    lemmas list can be used by the model or not.
+
+    Parameters
+    ----------
+    text: str
+        The lemmas list returned by the preoprecessing function.
+
+    Returns
+    -------
+    boolean:
+        A boolean indicating if this document can be used on the model.
+    """
     return len(lemmas) == 0
 
 
-def predict(texts):
+def predict_topics(texts):
+    """
+    This function is a pipeline that takes string texts and process them
+    to prepare the data and make prediction use the Topic-modelling model.
+
+    Then finally, it calls a function to print the results
+
+    Parameters
+    ----------
+    text: str
+        The lemmas list returned by the preoprecessing function.
+    """
 
     input_df = pd.DataFrame(texts, columns=["text"])
     input_df["lemmas"] = input_df.text.apply(preprocessing)
@@ -76,31 +121,45 @@ def predict(texts):
     input_bow = [dictionary.doc2bow(doc) for doc in input_df.lemmas]
     input_pred = lda_model[input_bow]
 
-    for i in range(len(input_pred)):
-        print_txt = input_df.text.iloc[i].replace('\n', ' ')
+    print_topics(input_pred, input_df)
 
-        scores = pd.DataFrame(input_pred[i], columns=["index", "score"]).set_index(
-            "index"
-        )
+
+def print_topics(preds, input_df):
+    """
+    This function prints the model predictions using the Streamlit functions
+
+    Parameters
+    ----------
+    preds: array
+        The prediction array returned by the model.
+    input_df: pandas.DataFrame
+        The dataframe containing the preprocessing transformations
+    """
+
+    for i in range(len(preds)):
+        print_txt = input_df.text.iloc[i].replace("\n", " ")
+
+        scores = pd.DataFrame(
+                preds[i],
+                columns=["index", "score"]
+                ).set_index("index")
 
         st.write(f"---  \n#### Input #{i+1}")
         st.write(f"##### Texte avant traitement:  \n> {print_txt}")
         if input_df.filtered.iloc[i]:
-            st.write("##### Ce texte ne peut pas être traité...")
+            st.write("##### ⚠️ Ce texte ne peut pas être traité...")
         else:
-            st.write(f"##### Texte après traitement:  \n> {input_df.lemmas.iloc[i]}")
+            st.write("##### Texte après traitement:")
+            st.write(f"> {input_df.lemmas.iloc[i]}")
 
-            for j, score in enumerate(
-                scores.sort_values("score", ascending=False).iterrows()
-            ):
-                st.write(
-                    f"##### Sujet #{j+1}:  \n> {score[1][0]*100:.2f}% : {sujets[score[0]]}"
-                )
+            for j, score in enumerate(scores.sort_values("score", ascending=False).iterrows()):
+                st.write(f"##### Sujet #{j+1}:")
+                st.write(f"> {score[1][0]*100:.2f}% : {topic_labels[score[0]]}")
 
 
-########################################
+##################################################
 # Streamlit design
-########################################
+##################################################
 
 st.set_page_config(
     page_title="Démo Avis Resto",
@@ -114,32 +173,78 @@ st.set_page_config(
     },
 )
 
-st.title('Démonstration des nouvelles fonctionnalités de collaboration pour "Avis Resto"')
-st.write("## Topic Modelling")
-st.write("---  \n### Methode 1: saisie manuelle")
+st.title(
+    'Démonstration des nouvelles fonctionnalités de collaboration pour "Avis Resto"'
+)
+st.write("---  \n## Topic Modelling")
+
+# --- Single Topic Modelling ---
+st.write("### Methode 1: saisie manuelle")
 txt = st.text_area(
     "Veuillez saisir (en anglais) une review négative dont vous aimeriez connaitre le sujet"
 )
 
-
 if txt is not None and txt != "":
-    predict([txt])
+    predict_topics([txt])
 
 
-st.write("---  \n### Methode 2: traitement en serie")
+# --- Batch Topic Modelling ---
+st.write("### Methode 2: traitement en serie")
 uploaded_file = st.file_uploader(
-    "Choisissez un fichier TXT contenant une review par ligne.", type=["txt"]
+    "Choisissez un fichier TXT contenant une review par ligne.", type=["txt","csv"]
 )
 if uploaded_file is not None:
     # To read file as bytes:
     texts = []
-    for line in uploaded_file:
-        txt = line.decode("utf-8")
-        texts.append(txt)
+    if uploaded_file.type == "text/csv":
+        input_df = pd.read_csv(uploaded_file)
+        print(input_df)
+        columns = input_df.columns
 
-    predict(texts)
+        def get_top_id(row):
+            max_id = None
+            max_va = 0
+            for topics in row:
+                cur_id = topics[0]
+                cur_va = topics[1]
+                if cur_va > max_va:
+                    max_va = cur_va
+                    max_id = cur_id
+            # print("max:", max_id, max_va)
 
-st.write("## Classification des images utilisateur")
+            if math.isclose(max_va, 0.33333, rel_tol=1e-1):
+                return "None"
+            else:
+                return f"{topic_labels[max_id]} ({max_va*100.0:.2f}%)"
+
+        input_df["lemmas"] = input_df.text.apply(preprocessing)
+        input_df["filtered"] = input_df.lemmas.apply(is_filtered_docs)
+        input_bow = [dictionary.doc2bow(doc) for doc in input_df.lemmas]
+        input_pred = pd.DataFrame(lda_model[input_bow])
+        input_pred['main_topic'] = input_pred.apply(get_top_id, axis=1)
+        # st.dataframe(input_df)
+        # st.dataframe(input_pred)
+
+        export_df = input_df[columns]
+        export_df['main_topic'] = input_pred['main_topic']
+        st.dataframe(export_df)
+
+        st.download_button(
+            "Télécharger ce nouveau jeu de données",
+            export_df.to_csv(index=False),
+            "file.csv",
+            "text/csv",
+            key='download-csv'
+        )
+
+    elif uploaded_file.type == "text/plain":
+        for line in uploaded_file:
+            txt = line.decode("utf-8")
+            texts.append(txt)
+
+        predict_topics(texts)
+
+st.write("---  \n## Classification des images utilisateur")
 
 uploaded_files = st.file_uploader(
     "Choissisez une ou plusieurs images à analyser", accept_multiple_files=True
@@ -150,18 +255,3 @@ for uploaded_file in uploaded_files:
     # st.write(bytes_data)
     st.image(bytes_data)
     st.write("CLASSIFICATION:", "[pred text]")
-
-
-with st.form("my-form", clear_on_submit=True):
-    uploaded_files = st.file_uploader(
-        "Choissisez une ou plusieurs images à analyser", accept_multiple_files=True
-    )
-    submitted = st.form_submit_button("UPLOAD!")
-
-    if submitted and uploaded_files is not None:
-        for uploaded_file in uploaded_files:
-            bytes_data = uploaded_file.read()
-            # st.write("filename:", uploaded_file.name)
-            # st.write(bytes_data)
-            st.image(bytes_data)
-            st.write("CLASSIFICATION:", "[pred text]")
