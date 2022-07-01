@@ -15,12 +15,7 @@ nlp = spacy.load("en_core_web_sm")
 nlp.add_pipe("language_detector")
 
 # Load the LDA model and the associated dictionnary
-(dictionary, lda_model) = joblib.load(os.path.join("data", "lda.pipeline"))
-sujets = {
-    0: "Le sujet A",
-    1: "Le sujet B",
-    2: "Le sujet C",
-}
+(dictionary, lda_model, sujets) = joblib.load(os.path.join("data", "lda.pipeline"))
 
 # Define required functions
 def preprocessing(text, except_words=[]):
@@ -82,8 +77,7 @@ def predict(texts):
     input_pred = lda_model[input_bow]
 
     for i in range(len(input_pred)):
-        print_txt = input_df.text.iloc[i]
-        # print_txt = input_df.text.iloc[i].replace('\\n', ' ')
+        print_txt = input_df.text.iloc[i].replace('\n', ' ')
 
         scores = pd.DataFrame(input_pred[i], columns=["index", "score"]).set_index(
             "index"
