@@ -235,7 +235,7 @@ def preprocess_image_show(steps_show, steps_name):
     st.pyplot(fig)
 
 
-def preprocess_image(img, param_blur=2, newsize=(300, 300)):
+def preprocess_image(img, param_blur=2, newsize=(300, 300), show_preprocess=False):
 
     img = Image.open(img)
 
@@ -248,9 +248,10 @@ def preprocess_image(img, param_blur=2, newsize=(300, 300)):
     # Resize
     final_img = equalized_img.resize(newsize)
 
-    steps_show = [img, blured_img, equalized_img, final_img]
-    steps_name = ["source", "blured", "equalized", "resized"]
-    preprocess_image_show(steps_show, steps_name)
+    if show_preprocess:
+        steps_show = [img, blured_img, equalized_img, final_img]
+        steps_name = ["source", "blured", "equalized", "resized"]
+        preprocess_image_show(steps_show, steps_name)
 
     return blured_img, equalized_img, final_img
 
@@ -354,6 +355,8 @@ def show_image_classification():
         accept_multiple_files=True,
         type=["jpg", "jpeg", "png"],
     )
+    show_preprocess = st.checkbox('Afficher les étapes de pré-traitement', value=True)
+
     for i, uploaded_file in enumerate(uploaded_files):
         st.write(f"---  \n#### Input #{i+1}")
         t0 = time.time()
@@ -361,9 +364,11 @@ def show_image_classification():
         t1 = time.time()
         print(f"IMAGE CLASSIFICATION TIME > read bytes > {t1-t0:.4f}")
         blured_img, equalized_img, final_img = preprocess_image(
-            uploaded_file, newsize=(224, 224)
+            uploaded_file, newsize=(224, 224), show_preprocess=show_preprocess
         )
-        st.image([bytes_data, final_img], width=350)
+
+        if show_preprocess is False:
+            st.image([bytes_data, final_img], width=350)
         t2 = time.time()
         print(f"IMAGE CLASSIFICATION TIME > preprocess_image > {t2-t1:.4f}")
         top_label, top_score, preds = predict_category(final_img)
