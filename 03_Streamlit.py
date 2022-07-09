@@ -3,8 +3,8 @@
 
 import os
 import math
-import time
 import joblib
+import pathlib
 
 import pandas as pd
 import numpy as np
@@ -19,6 +19,7 @@ import tflite_runtime.interpreter as tflite
 from PIL import Image, ImageOps, ImageFilter  # , ImageDraw
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
+
 # from keras.applications.vgg16 import preprocess_input as preprocess_input_vgg16
 
 
@@ -209,11 +210,21 @@ def get_top_id(row):
 # Image Classification : functions & variables
 ##################################################
 
+# --- Load CNN feature extractor
+CNN_feature_extractor = joblib.load(pathlib.Path("models", "feature_extractor_CNN.bin"))
+
+# --- Load t-SNE model & data for trained CNN
+tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels = joblib.load(
+    pathlib.Path("models", "tsne_CNN_trained_dual.bin")
+)
+
 # --- Load TF-Lite model using an interpreter
-interpreter = tflite.Interpreter(model_path="models/vgg16_clf10.tflite")
-interpreter.allocate_tensors()
-input_index = interpreter.get_input_details()[0]["index"]
-output_index = interpreter.get_output_details()[0]["index"]
+CNN_classifier = tflite.Interpreter(
+    model_path=str(pathlib.Path("models", "vgg16_clf10.tflite"))
+)
+CNN_classifier.allocate_tensors()
+input_index = CNN_classifier.get_input_details()[0]["index"]
+output_index = CNN_classifier.get_output_details()[0]["index"]
 
 categories = ["drink", "food", "inside", "menu", "outside"]
 categories_fr = ["boisson", "nourriture", "intérieur", "menu", "extérieur"]
@@ -329,12 +340,71 @@ def predict_category(img):
     # img = preprocess_input_vgg16(img)
 
     # Apply model
-    interpreter.set_tensor(input_index, [img])
-    interpreter.invoke()
-    preds = interpreter.get_tensor(output_index)
+    CNN_classifier.set_tensor(input_index, [img])
+    CNN_classifier.invoke()
+    preds = CNN_classifier.get_tensor(output_index)
     top_score = preds[0].max()
     top_label = categories_fr[preds[0].argmax()]
     return top_label, top_score, preds[0]
+
+
+def plot_TNSE_with_new_points(
+    model,
+    old_data,
+    new_data,
+    labels=None,
+    title="t-SNE",
+    alpha=0.5,
+    color_target="cluster",
+):
+    """
+    This function plots the provided t-SNE model along with the old and new features.
+
+    Parameters
+    ----------
+    model: openTSNE
+        The fitted openTSNE model
+    old_data: pd.DataFrame
+        The dataset containing the data already transformed with the t-SNE model
+    new_data: array
+        The new features to transform using the model
+    labels: list
+        The list of optional labels for the t-SNE clusters
+    color_target: str
+        The name of the column that need to be used for the coloration
+    alpha: float
+        The opacity value for the old features on the plot
+    title: str
+        The title of the plot
+    """
+
+    cmap_ref = "nipy_spectral"
+    new_data = model.transform(new_data)
+    new_data = pd.DataFrame(new_data, columns=["D1", "D2"])
+
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111)
+    scatter = ax.scatter(
+        old_data["D1"],
+        old_data["D2"],
+        c=old_data[color_target],
+        s=50,
+        cmap=cmap_ref,
+        marker="+",
+        alpha=alpha,
+    )
+    ax.scatter(new_data["D1"], new_data["D2"], s=50, color="r", marker="o")
+    if labels:
+        plt.legend(handles=scatter.legend_elements()[0], labels=labels)
+    else:
+        plt.colorbar(scatter)
+    ax.set_title(title)
+    ax.set_xlabel("Dimention 1")
+    ax.set_ylabel("Dimention 2")
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.pyplot(fig)
 
 
 ##################################################
@@ -422,26 +492,55 @@ def show_image_classification():
         accept_multiple_files=True,
         type=["jpg", "jpeg", "png"],
     )
-    show_preprocess = st.checkbox('Afficher les étapes de pré-traitement', value=True)
+    show_preprocess = st.checkbox("Afficher les étapes de pré-traitement", value=True)
 
     for i, uploaded_file in enumerate(uploaded_files):
         st.write(f"---  \n#### Input #{i+1}")
-        t0 = time.time()
         bytes_data = uploaded_file.read()
-        t1 = time.time()
-        print(f"IMAGE CLASSIFICATION TIME > read bytes > {t1-t0:.4f}")
+
         final_img = preprocess_image(uploaded_file, 2, (224, 224), show_preprocess)
 
         if show_preprocess is False:
             st.image([bytes_data, final_img], width=350)
-        t2 = time.time()
-        print(f"IMAGE CLASSIFICATION TIME > preprocess_image > {t2-t1:.4f}")
+
         top_label, top_score, preds = predict_category(final_img)
-        t3 = time.time()
-        print(f"IMAGE CLASSIFICATION TIME > predict_category > {t3-t2:.4f}")
+
         st.write(
             f"CLASSIFICATION: <span style='color:Grey'>{[round(x,4) for x in preds]}</span> >>> <span style='color:Red'>{top_label.title()}</span> ({top_score*100:.2f}%)",
             unsafe_allow_html=True,
+        )
+
+
+def show_image_classification_eda():
+    uploaded_files = st.file_uploader(
+        "Choissisez une ou plusieurs images à analyser",
+        accept_multiple_files=True,
+        type=["jpg", "jpeg", "png"],
+    )
+    show_preprocess = st.checkbox("Afficher les étapes de pré-traitement", value=True)
+
+    for i, uploaded_file in enumerate(uploaded_files):
+        st.write(f"---  \n#### Input #{i+1}")
+        bytes_data = uploaded_file.read()
+
+        final_img = preprocess_image(uploaded_file, 2, (224, 224), show_preprocess)
+        col1, col2, col3 = st.columns([1, 2, 1])
+
+        if show_preprocess is False:
+            with col2:
+                st.image([bytes_data, final_img], width=350)
+
+        pred_img = np.array(final_img, np.float32)
+        pred_img = np.expand_dims(pred_img, axis=0)
+        bags_of_visual_words_CNN = CNN_feature_extractor.predict(pred_img)
+
+        plot_TNSE_with_new_points(
+            tsne_CNN_trained_model,
+            tsne_CNN_trained_data,
+            bags_of_visual_words_CNN,
+            labels=tsne_CNN_trained_labels,
+            color_target="category",
+            title="t-SNE des features extraites du CNN",
         )
 
 
@@ -450,7 +549,7 @@ def show_image_classification():
 with st.sidebar:
     selected = option_menu(
         menu_title="Menu",
-        options=["Topic Modelling", "Image Classification"],
+        options=["Topic Modelling", "Image Classification", "CNN Feature Extraction"],
         icons=["newspaper", "camera"],
         default_index=0,
     )
@@ -458,6 +557,18 @@ with st.sidebar:
 if selected == "Topic Modelling":
     st.write("---  \n## Topic Modelling")
     show_topic_modelling()
-else:
+elif selected == "Image Classification":
     st.write("---  \n## Classification des images utilisateur")
     show_image_classification()
+else:
+    st.write("---  \n## Extraction des features avec le CNN")
+    show_image_classification_eda()
+
+
+## Test zone
+
+# tsne_data, tsne_model = joblib.load(pathlib.Path("data", "tsne_Kmeans_SIFT.bin"))
+
+# test_X = pd.DataFrame([ 16.,   3.,   1.,   2.,   6.,  49.,  69.,  75.,  34.,  21.,  11., 0.,   0.,  29., 119., 122.,   8.,   5.,   8.,   0.,   1., 122., 122.,  28.,  62.,  10.,   7.,   1.,   1.,  36.,  52.,  44.,  51., 13.,   4.,   1.,   3.,  10.,  27.,  32.,  38., 102., 122.,  10., 9.,  18.,  13.,  33.,  88., 117.,  71.,   1.,   1.,  61.,  46., 12.,  20.,   3.,   2.,   1.,   2., 122.,  94.,   9.,  83.,  21., 1.,   1.,   2.,  19.,   9.,  14.,  19.,  11.,  14.,   5.,  10., 78.,  35.,  21., 122.,  37.,   5.,   0.,   0.,   5.,  14.,  55., 75.,   7.,   0.,   0.,   0.,  21.,  34.,  10.,  45., 122.,   6., 0.,   0.,   2.,   1.,   1.,  14.,  38.,   7.,   0.,   1.,  14., 9.,   4.,  86.,  83.,   0.,   0.,   2.,   3.,   4.,   8.,  42., 90.,   1.,   0.,   0.,   0.,   0.,   1.])
+
+# plot_TNSE_with_new_points(tsne_model, tsne_data, test_X.to_numpy().T)
