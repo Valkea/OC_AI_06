@@ -3,14 +3,24 @@
 
 import os
 import math
+import time
 import joblib
+
+import pandas as pd
+import numpy as np
+
+import streamlit as st
+from streamlit_option_menu import option_menu
 
 import spacy
 import spacy_fastlang
-import streamlit as st
-from streamlit_option_menu import option_menu
-import pandas as pd
-import numpy as np
+
+import tflite_runtime.interpreter as tflite
+from PIL import Image, ImageOps, ImageFilter  # , ImageDraw
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
+# from keras.applications.vgg16 import preprocess_input as preprocess_input_vgg16
+
 
 ##################################################
 # Topic Modelling : functions & variables
@@ -178,6 +188,88 @@ def get_top_id(row):
 
 
 ##################################################
+# Image Classification : functions & variables
+##################################################
+
+# --- Load TF-Lite model using an interpreter
+interpreter = tflite.Interpreter(model_path="models/vgg16_clf10.tflite")
+interpreter.allocate_tensors()
+input_index = interpreter.get_input_details()[0]["index"]
+output_index = interpreter.get_output_details()[0]["index"]
+
+categories = ["drink", "food", "inside", "menu", "outside"]
+categories_fr = ["boisson", "nourriture", "intérieur", "menu", "extérieur"]
+# collected from validation_flow.class_indices.keys()
+
+
+def preprocess_image_show(steps_show, steps_name):
+
+    # print(img_path, photo.label.upper())
+
+    fig = plt.figure(figsize=(20, 7), facecolor="lightgray")
+
+    spec = gridspec.GridSpec(
+        ncols=len(steps_show),
+        nrows=2,
+        width_ratios=[1] * len(steps_show),
+        wspace=0.3,
+        hspace=0.3,
+        height_ratios=[5, 2],
+    )
+
+    for i, image in enumerate(steps_show):
+
+        fig.add_subplot(spec[i])
+        plt.title(steps_name[i])
+        plt.imshow(image, cmap="gray", vmin=0, vmax=255)
+        plt.axis("off")
+
+        fig.add_subplot(spec[i + len(steps_show)])
+        mat = np.array(image)
+        plt.title("Histogramme de l'image")
+        plt.hist(mat.flatten(), bins=range(256))
+        plt.xlabel("Intensité")
+        plt.ylabel("Nombre de pixels")
+
+    # plt.show()
+    st.pyplot(fig)
+
+
+def preprocess_image(img, param_blur=2, newsize=(300, 300)):
+
+    img = Image.open(img)
+
+    # Blur
+    blured_img = img.filter(ImageFilter.BoxBlur(param_blur))
+
+    # Equalize
+    equalized_img = ImageOps.equalize(blured_img)
+
+    # Resize
+    final_img = equalized_img.resize(newsize)
+
+    steps_show = [img, blured_img, equalized_img, final_img]
+    steps_name = ["source", "blured", "equalized", "resized"]
+    preprocess_image_show(steps_show, steps_name)
+
+    return blured_img, equalized_img, final_img
+
+
+def predict_category(img):
+
+    img = np.array(img, np.float32)
+    # img = preprocess_input_vgg16(img)
+
+    # Apply model
+    interpreter.set_tensor(input_index, [img])
+    interpreter.invoke()
+    preds = interpreter.get_tensor(output_index)
+    top_score = preds[0].max()
+    top_label = categories_fr[preds[0].argmax()]
+    return top_label, top_score, preds[0]
+
+
+##################################################
 # Streamlit design
 ##################################################
 
@@ -185,7 +277,7 @@ def get_top_id(row):
 st.set_page_config(
     page_title="Démo Avis Resto",
     page_icon="🍔",
-    layout="centered",  # center | wide
+    layout="wide",  # center | wide
     initial_sidebar_state="expanded",
     menu_items={
         "Get Help": "https://www.google.com/help",
@@ -260,14 +352,27 @@ def show_image_classification():
     uploaded_files = st.file_uploader(
         "Choissisez une ou plusieurs images à analyser",
         accept_multiple_files=True,
-        type=["jpg", "png"],
+        type=["jpg", "jpeg", "png"],
     )
-    for uploaded_file in uploaded_files:
+    for i, uploaded_file in enumerate(uploaded_files):
+        st.write(f"---  \n#### Input #{i+1}")
+        t0 = time.time()
         bytes_data = uploaded_file.read()
-        # st.write("filename:", uploaded_file.name)
-        # st.write(bytes_data)
-        st.image(bytes_data)
-        st.write("CLASSIFICATION:", "[pred text]")
+        t1 = time.time()
+        print(f"IMAGE CLASSIFICATION TIME > read bytes > {t1-t0:.4f}")
+        blured_img, equalized_img, final_img = preprocess_image(
+            uploaded_file, newsize=(224, 224)
+        )
+        st.image([bytes_data, final_img], width=350)
+        t2 = time.time()
+        print(f"IMAGE CLASSIFICATION TIME > preprocess_image > {t2-t1:.4f}")
+        top_label, top_score, preds = predict_category(final_img)
+        t3 = time.time()
+        print(f"IMAGE CLASSIFICATION TIME > predict_category > {t3-t2:.4f}")
+        st.write(
+            f"CLASSIFICATION: <span style='color:Grey'>{[round(x,4) for x in preds]}</span> >>> <span style='color:Red'>{top_label.title()}</span> ({top_score*100:.2f}%)",
+            unsafe_allow_html=True,
+        )
 
 
 # --- Side bar ---
