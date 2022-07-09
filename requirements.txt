@@ -76,6 +76,7 @@ numexpr==2.8.1
 numpy==1.22.4
 oauthlib==3.2.0
 opencv-python==4.6.0.66
+openTSNE==0.6.2
 opt-einsum==3.3.0
 packaging==21.3
 pandas==1.4.2
@@ -138,6 +139,7 @@ tensorflow-estimator==2.9.0
 tensorflow-io-gcs-filesystem==0.26.0
 termcolor==1.1.0
 terminado==0.15.0
+tflite-runtime==2.9.1
 thinc==8.0.17
 threadpoolctl==3.1.0
 tinycss2==1.1.1
