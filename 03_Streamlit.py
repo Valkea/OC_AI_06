@@ -500,15 +500,20 @@ def show_image_classification():
 
         final_img = preprocess_image(uploaded_file, 2, (224, 224), show_preprocess)
 
+        col1, col2, col3 = st.columns([1, 2, 1])
+
         if show_preprocess is False:
-            st.image([bytes_data, final_img], width=350)
+            with col2:
+                st.image([bytes_data, final_img], width=350)
 
         top_label, top_score, preds = predict_category(final_img)
 
-        st.write(
-            f"CLASSIFICATION: <span style='color:Grey'>{[round(x,4) for x in preds]}</span> >>> <span style='color:Red'>{top_label.title()}</span> ({top_score*100:.2f}%)",
-            unsafe_allow_html=True,
-        )
+
+        with col2:
+            st.write(
+                f"CLASSIFICATION: <span style='color:Grey'>{[round(x,4) for x in preds]}</span> >>> <span style='color:Red'>{top_label.title()}</span> ({top_score*100:.2f}%)",
+                unsafe_allow_html=True,
+            )
 
 
 def show_image_classification_eda():
@@ -549,8 +554,8 @@ def show_image_classification_eda():
 with st.sidebar:
     selected = option_menu(
         menu_title="Menu",
-        options=["Topic Modelling", "Image Classification", "CNN Feature Extraction"],
-        icons=["newspaper", "camera"],
+        options=["Topic Modelling", "CNN Feature Extraction", "Image Classification"],
+        icons=["newspaper", "list-task", "camera"],
         default_index=0,
     )
 
