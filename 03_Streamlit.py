@@ -33,9 +33,9 @@ nlp.add_pipe("language_detector")
 
 @st.cache(allow_output_mutation=True)
 def load_lda():
-    # Load the LDA model and the associated dictionnary
+    print("LOADING the LDA model and the associated dictionnary")
     (dictionary, lda_model, topic_labels) = joblib.load(
-        os.path.join("data", "lda.pipeline")
+        os.path.join("models", "lda.pipeline")
     )
     return dictionary, lda_model, topic_labels
 
@@ -236,6 +236,7 @@ def load_CNN_tsne():
 
 @st.cache
 def load_CNN_classifier():
+    print("LOADING CNN classifier")
 
     global CNN_classifier, input_index, output_index 
     CNN_classifier = tflite.Interpreter(
@@ -448,9 +449,9 @@ st.set_page_config(
     },
 )
 
-st.title(
-    'Démonstration des nouvelles fonctionnalités de collaboration pour "Avis Resto"'
-)
+#st.title(
+#    'Démonstration des nouvelles fonctionnalités de collaboration pour "Avis Resto"  \n---'
+#)
 
 
 def show_topic_modelling():
@@ -580,6 +581,16 @@ def show_text_feature_extraction():
      ('Sans traitement', 'Après tokenisation + filtrage + lemmatization', 'Après suppression des extrêmes (en fréquence)'))
 
     st.write('You selected:', option)
+    if option == 'Sans traitement':
+        image = Image.open(pathlib.Path("medias", "wordcloud1.png"))
+    elif option == 'Après tokenisation + filtrage + lemmatization':
+        image = Image.open(pathlib.Path("medias", "wordcloud2.png"))
+    elif option == 'Après suppression des extrêmes (en fréquence)':
+        image = Image.open(pathlib.Path("medias", "wordcloud3.png"))
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image(image)
 
 
 # --- Side bar ---
@@ -593,7 +604,7 @@ with st.sidebar:
     )
 
 if selected == "Topic Modelling":
-    st.write("---  \n## Topic Modelling")
+    st.write("## Topic Modelling")
 
     global dictionary, lda_model, topic_labels
     #nlp = load_nlp()
@@ -602,7 +613,7 @@ if selected == "Topic Modelling":
     show_topic_modelling()
 
 elif selected == "Image Classification":
-    st.write("---  \n## Classification des images utilisateur")
+    st.write("Classification des images utilisateur")
 
     global CNN_classifier, input_index, output_index
     CNN_classifier, input_index, output_index = load_CNN_classifier()
@@ -610,7 +621,7 @@ elif selected == "Image Classification":
     show_image_classification()
 
 elif selected == "CNN Feature Extraction":
-    st.write("---  \n## Extraction des features avec le CNN")
+    st.write("## Extraction des features avec le CNN")
 
     global CNN_feature_extractor
     CNN_feature_extractor = load_feature_extractor()
@@ -621,7 +632,7 @@ elif selected == "CNN Feature Extraction":
     show_image_feature_extraction()
 
 else:
-    st.write("---  \n## Préparation des documents")
+    st.write("## Préparation des documents")
     show_text_feature_extraction()
 
 
