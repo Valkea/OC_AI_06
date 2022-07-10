@@ -16,9 +16,13 @@ import spacy
 import spacy_fastlang
 
 import tflite_runtime.interpreter as tflite
-from PIL import Image, ImageOps, ImageFilter  # , ImageDraw
+from PIL import Image, ImageOps, ImageFilter, ImageDraw
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
+import cv2
+import seaborn as sns
+
+from sklearn.cluster import KMeans
 
 from keras.applications.vgg16 import preprocess_input as preprocess_input_vgg16
 from keras.models import load_model
@@ -218,30 +222,36 @@ def get_top_id(row):
 def load_feature_extractor():
     print("LOADING feature extractor")
 
-    CNN_feature_extractor = joblib.load(pathlib.Path("models", "feature_extractor_CNN.bin"))
+    CNN_feature_extractor = joblib.load(
+        pathlib.Path("models", "feature_extractor_CNN.bin")
+    )
     # CNN_feature_extractor = load_model(pathlib.Path("models", "feature_extractor_CNN.h5"))
     # CNN_feature_extractor.load_weights(pathlib.Path("models", "feature_extractor_CNN_weights.hdf5"))
 
     return CNN_feature_extractor
 
+
 @st.cache(allow_output_mutation=True)
 def load_CNN_tsne():
     print("LOADING CNN t-sne")
 
-    tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels = joblib.load(
-        pathlib.Path("models", "tsne_CNN_trained_dual.bin")
-    )
+    (
+        tsne_CNN_trained_data,
+        tsne_CNN_trained_model,
+        tsne_CNN_trained_labels,
+    ) = joblib.load(pathlib.Path("models", "tsne_CNN_trained_dual.bin"))
 
     return tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels
+
 
 @st.cache
 def load_CNN_classifier():
     print("LOADING CNN classifier")
 
-    global CNN_classifier, input_index, output_index 
+    global CNN_classifier, input_index, output_index
     CNN_classifier = tflite.Interpreter(
-            model_path=str(pathlib.Path("models", "vgg16_clf1_vca:0.85.tflite"))
-            # model_path=str(pathlib.Path("models", "vgg16_clf2_vca:0.87.tflite"))
+        model_path=str(pathlib.Path("models", "vgg16_clf1_vca:0.85.tflite"))
+        # model_path=str(pathlib.Path("models", "vgg16_clf2_vca:0.87.tflite"))
     )
     CNN_classifier.allocate_tensors()
     input_index = CNN_classifier.get_input_details()[0]["index"]
@@ -432,6 +442,109 @@ def plot_TNSE_with_new_points(
         st.pyplot(fig)
 
 
+def image_grid(imgs, rows, cols):
+    assert len(imgs) == rows * cols
+    h_space, w_space = 10, 5
+    w, h = imgs[0].size
+    grid = Image.new("RGB", size=(cols * (w + w_space) - w_space, rows * (h + h_space)))
+    grid_w, grid_h = grid.size
+
+    for i, img in enumerate(imgs):
+        sub_img = Image.new("RGB", size=(w, h + h_space))
+        sub_img.paste(img, box=(0, h_space))
+        draw = ImageDraw.Draw(sub_img)
+        txt = f"{i+1}"
+        ts = draw.textlength(txt)
+        draw.text(((w - ts) / 2, 0), txt, (255, 255, 255), align="center")
+        grid.paste(sub_img, box=(i % cols * (w + w_space), i // cols * (h + h_space)))
+    return grid
+
+
+def preprocess_image_SIFT(img, num_clusters=95):
+
+    root_num_top = 4
+    sift = cv2.SIFT_create(nfeatures=250)  # patchSize is fixed in code (size=12σ×12σ)
+    kmeans_SIFT, num_clusters = joblib.load(pathlib.Path("models", "kmeans_SIFT.bin"))
+
+    mat = np.array(img)
+    # queryKeypointsORB, queryDescriptorsORB = orb.detectAndCompute(mat,None)
+    queryKeypointsSIFT, queryDescriptorsSIFT = sift.detectAndCompute(mat, None)
+
+    # Get visual-words for the histogramm
+    preds = pd.DataFrame(kmeans_SIFT.predict(queryDescriptorsSIFT))
+    select = (
+        pd.DataFrame(preds.value_counts(sort=False), columns=["count"])
+        .reset_index()
+        .rename(columns={0: "index"})
+    )
+    select.set_index("index", inplace=True)
+    select = select.reindex(list(range(0, num_clusters)), fill_value=0)
+    select_top = select.sort_values("count", ascending=False)[: root_num_top ** 2]
+
+    fig = plt.figure(figsize=(20, 7), facecolor="lightgray")
+
+    # draw only keypoints location,not size and orientation
+    plt.subplot(1, 6, (1, 2))
+
+    plt.title("SIFT descriptors")
+    img_sift = cv2.drawKeypoints(
+        mat, queryKeypointsSIFT, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS
+    )
+    plt.imshow(img_sift)
+    plt.axis("off")
+
+    # draw visual-words histogram
+    plt.subplot(1, 6, (3, 5))
+
+    ax = sns.barplot(data=select.T)
+    ax.bar_label(ax.containers[0])
+    new_ticks = [i.get_text() for i in ax.get_xticklabels()]
+    labels_modulo = 5
+    plt.xticks(
+        range(0, len(new_ticks), labels_modulo), new_ticks[::labels_modulo], rotation=0
+    )
+    plt.ylabel("Nombre d'occurences")
+    plt.xlabel("Index des visual-words")
+    plt.title(f"Histogramme")
+
+    # draw visual-words
+    grid_imgs = []
+    for j in range(0, root_num_top ** 2):
+        print('j:', j)
+        index = select_top.index[j]
+
+        # Select one of the multiple patches as visual-word representation
+        id = preds[preds.values == index].sample(1, random_state=0).index[0]
+
+        # Get the patch infos
+        (x_s, y_s) = queryKeypointsSIFT[id].pt
+        size_s = queryKeypointsSIFT[id].size
+        angle_s = queryKeypointsSIFT[id].angle
+
+        # SIFT Crop
+        left_s = x_s - size_s
+        right_s = x_s + size_s
+        top_s = y_s - size_s
+        bottom_s = y_s + size_s
+
+        img_copy = img.copy().rotate(-angle_s, center=(x_s, y_s))
+        img_crop_s = img_copy.crop((left_s, top_s, right_s, bottom_s)).resize(
+            (30, 30), Image.Resampling.NEAREST
+        )
+
+        # Append to grid list
+        grid_imgs.append(img_crop_s)
+
+    plt.subplot(1, 6, 6)
+    plt.title(f"TOP {root_num_top**2} visual-words")
+    plt.imshow(image_grid(grid_imgs, rows=root_num_top, cols=root_num_top))
+    plt.axis("off")
+
+    # plt.show()
+    st.pyplot(fig)
+    st.dataframe(select.T)
+
+
 ##################################################
 # Streamlit design
 ##################################################
@@ -449,9 +562,9 @@ st.set_page_config(
     },
 )
 
-#st.title(
+# st.title(
 #    'Démonstration des nouvelles fonctionnalités de collaboration pour "Avis Resto"  \n---'
-#)
+# )
 
 
 def show_topic_modelling():
@@ -533,7 +646,6 @@ def show_image_classification():
 
         top_label, top_score, preds = predict_category(final_img)
 
-
         with col2:
             st.write(
                 f"CLASSIFICATION: <span style='color:Grey'>{[round(x,4) for x in preds]}</span> >>> <span style='color:Red'>{top_label.title()}</span> ({top_score*100:.2f}%)",
@@ -575,15 +687,53 @@ def show_image_feature_extraction():
         )
 
 
+def show_image_feature_extraction_SIFT():
+    uploaded_files = st.file_uploader(
+        "Choissisez une ou plusieurs images à analyser",
+        accept_multiple_files=True,
+        type=["jpg", "jpeg", "png"],
+    )
+    show_preprocess = st.checkbox("Afficher les étapes de pré-traitement", value=True)
+
+    for i, uploaded_file in enumerate(uploaded_files):
+        st.write(f"---  \n#### Input #{i+1}")
+        bytes_data = uploaded_file.read()
+
+        final_img = preprocess_image(uploaded_file, 2, (224, 224), show_preprocess)
+        col1, col2, col3 = st.columns([1, 2, 1])
+
+        if show_preprocess is False:
+            with col2:
+                st.image([bytes_data, final_img], width=350)
+
+        # pred_img = np.array(final_img, np.float32)
+        # pred_img = np.expand_dims(pred_img, axis=0)
+        preprocess_image_SIFT(final_img)
+
+    if uploaded_files:
+        st.write("---")
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            st.write("#### Cependant, on peut voir sur le t-SNE ci-dessous qu'avec ce nombre de visual-words dans le BoVW il est difficile de distinguer les catégories...")
+            img1 = Image.open(pathlib.Path("medias", "t-SNE-SIFT95.png"))
+            st.image(img1)
+    
+
+
 def show_text_feature_extraction():
     option = st.selectbox(
-     'Les wordclouds aux différentes étapes',
-     ('Avant traitement', 'Après tokenisation + filtrage + lemmatization', 'Après suppression des extrêmes (en fréquence)'))
+        "Les wordclouds aux différentes étapes",
+        (
+            "Avant traitement",
+            "Après tokenisation + filtrage + lemmatization",
+            "Après suppression des extrêmes (en fréquence)",
+        ),
+    )
 
     col1, col2, col3 = st.columns([1, 2, 1])
 
-    #st.write('You selected:', option)
-    if option == 'Avant traitement':
+    # st.write('You selected:', option)
+    if option == "Avant traitement":
 
         img1 = Image.open(pathlib.Path("medias", "wordcloud1.png"))
         img2 = Image.open(pathlib.Path("medias", "stars1.png"))
@@ -597,10 +747,12 @@ def show_text_feature_extraction():
             st.write(txt1)
             st.write("Répartition des notes pour les 150.346 documents d'origine")
             st.image(img2)
-            st.write("Répartition des notes après sélection de 10.000 documents au hasard")
+            st.write(
+                "Répartition des notes après sélection de 10.000 documents au hasard"
+            )
             st.image(img3)
 
-    elif option == 'Après tokenisation + filtrage + lemmatization':
+    elif option == "Après tokenisation + filtrage + lemmatization":
         img1 = Image.open(pathlib.Path("medias", "wordcloud2.png"))
         txt1 = """
         >### Tokenisation
@@ -627,7 +779,7 @@ def show_text_feature_extraction():
             st.image(img1)
             st.write(txt1)
 
-    elif option == 'Après suppression des extrêmes (en fréquence)':
+    elif option == "Après suppression des extrêmes (en fréquence)":
         img1 = Image.open(pathlib.Path("medias", "wordcloud3.png"))
         txt1 = """
         >### A ce stade, nous avons appliqué un filtre sur la fréquence des mots:
@@ -646,13 +798,20 @@ def show_text_feature_extraction():
             st.image(img1)
             st.write(txt1)
 
+
 # --- Side bar ---
 
 with st.sidebar:
     selected = option_menu(
         menu_title="Menu",
-        options=["TXT Feature Extraction", "Topic Modelling", "CNN Feature Extraction", "Image Classification"],
-        icons=["list-task", "newspaper", "list-task", "camera"],
+        options=[
+            "TXT Feature Extraction",
+            "Topic Modelling",
+            "SIFT Feature Extraction",
+            "CNN Feature Extraction",
+            "Image Classification",
+        ],
+        icons=["", "newspaper", "", "", "camera"],
         default_index=0,
     )
 
@@ -660,7 +819,7 @@ if selected == "Topic Modelling":
     st.write("## Topic Modelling")
 
     global dictionary, lda_model, topic_labels
-    #nlp = load_nlp()
+    # nlp = load_nlp()
     dictionary, lda_model, topic_labels = load_lda()
 
     show_topic_modelling()
@@ -673,6 +832,11 @@ elif selected == "Image Classification":
 
     show_image_classification()
 
+elif selected == "SIFT Feature Extraction":
+    st.write("## Extraction des features avec SIFT")
+
+    show_image_feature_extraction_SIFT()
+
 elif selected == "CNN Feature Extraction":
     st.write("## Extraction des features avec le CNN")
 
@@ -680,7 +844,11 @@ elif selected == "CNN Feature Extraction":
     CNN_feature_extractor = load_feature_extractor()
 
     global tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels
-    tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels = load_CNN_tsne()
+    (
+        tsne_CNN_trained_data,
+        tsne_CNN_trained_model,
+        tsne_CNN_trained_labels,
+    ) = load_CNN_tsne()
 
     show_image_feature_extraction()
 
