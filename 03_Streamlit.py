@@ -580,17 +580,55 @@ def show_text_feature_extraction():
      'Les wordclouds aux différentes étapes',
      ('Sans traitement', 'Après tokenisation + filtrage + lemmatization', 'Après suppression des extrêmes (en fréquence)'))
 
-    st.write('You selected:', option)
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    #st.write('You selected:', option)
     if option == 'Sans traitement':
         image = Image.open(pathlib.Path("medias", "wordcloud1.png"))
+        texte = """
+        >### Nous avons commencé par faire une sélection de 10.000 documents dont les évaluations *(stars)* étaient de 1 ou 2.
+        """
+
     elif option == 'Après tokenisation + filtrage + lemmatization':
         image = Image.open(pathlib.Path("medias", "wordcloud2.png"))
+        texte = """
+        >### Tokenisation
+        > Cette étape consiste à découper les phrases ou documents en mot individuels ou en bloc de mots *(bigrammes, trigrammes, etc.)*. Se faisant, nous constituons un **corpus vocabulary** qui peut être utilisé de plusieurs façon *(Bags of Words, TF-IDF, Word2Vec...)*
+        >#### Lors de cette étape nous avons également supprimé:
+        > - les majuscules,
+        > - les espaces en début et fin de texte,
+
+        >### Filtrage
+        > Cette étape consiste à supprimer les tokens qui n'ont pas de valeur ajouté pour notre futur modèle, donc des mots qui ne transportent pas d'information utile pour le projet.
+        >#### Lors de cette étape nous avons donc supprimé:
+        > - tout ce qui n'est pas détecté comme étant de l'anglais *(language & language_score)*,
+        > - les stop-words *(is_stop)*,
+        > - la ponctuation *(PUNCT)*,
+        > - les espaces *(SPACE)*,
+        > - les chiffres *(is_alpha)*,
+        > - mais aussi les beaucoup d'autres tags peu utiles dans ce cas *(ADV, AUX, CONJ, CCONJ, DET, PART, PRON, PROPN, SCONJ, SYM)*.
+
+        >### Lematisation
+        > Cette étape consiste à chercher la raçine commune des mots en utilisant le contexte *(alors que les stem eux n'utilisent pas le contexte)*. Se faisant, nous rapprochons des mots qui pourraient sinon être considérés comme différents par nos algorithmes.
+        """
     elif option == 'Après suppression des extrêmes (en fréquence)':
         image = Image.open(pathlib.Path("medias", "wordcloud3.png"))
+        texte = """
+        >### A ce stade, nous avons appliqué un filtre sur la fréquence des mots:
+        > - On a supprimé les mots qui apparaissent dans moins de 5 documents
+        > - On a supprime les mots qui apparaissent dans plus de 50% des documents
 
-    col1, col2, col3 = st.columns([1, 2, 1])
+        >### Passé ces étapes, nous avons pu construire trois représentation de nos documents:
+        > - Le `Corpus - Bag Of Word` qui contient une liste *(un BoW pour chaque document)* de *term vectors* qui indiquent la fréquence de chaque mot du *vocabulaire*.
+        > - Le `Corpus - TF-IDF` qui est une version normalisée du Bag-Of-Words pour éviter que des mots sans importance mais fréquents ne prennent trop d'importance.
+        > - Le `Corpus - Word2vec` associe un vecteur à chaque mot du *vocabulaire* au lieu d'une valeur de fréquence (normalisée ou non). Cett particularité permet de retrouver plus facilement des mots similaires *( Homme --> Chercheur | Femme --> ? --> Chercheuse)*.
+        >
+        > Ces trois réprésentations ont été utilisés pour essayer différentes variantes des algorithmes `Latent Dirichlet Allocation (LDA)` et `Negative Matrix Factorisation (NMF)` 
+        """
+
     with col2:
         st.image(image)
+        st.write(texte)
 
 
 # --- Side bar ---
