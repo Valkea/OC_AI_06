@@ -629,7 +629,7 @@ def show_image_classification():
     uploaded_files = st.file_uploader(
         "Choissisez une ou plusieurs images à analyser",
         accept_multiple_files=True,
-        type=["jpg", "jpeg", "png"],
+        type=["jpg", "jpeg"],
     )
     show_preprocess = st.checkbox("Afficher les étapes de pré-traitement", value=False)
 
@@ -658,7 +658,7 @@ def show_image_feature_extraction():
     uploaded_files = st.file_uploader(
         "Choissisez une ou plusieurs images à analyser",
         accept_multiple_files=True,
-        type=["jpg", "jpeg", "png"],
+        type=["jpg", "jpeg"],
     )
     show_preprocess = st.checkbox("Afficher les étapes de pré-traitement", value=True)
 
@@ -692,7 +692,7 @@ def show_image_feature_extraction_SIFT():
     uploaded_files = st.file_uploader(
         "Choissisez une ou plusieurs images à analyser",
         accept_multiple_files=True,
-        type=["jpg", "jpeg", "png"],
+        type=["jpg", "jpeg"],
     )
     show_preprocess = st.checkbox("Afficher les étapes de pré-traitement", value=True)
 
