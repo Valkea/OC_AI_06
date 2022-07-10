@@ -11,21 +11,22 @@ import numpy as np
 
 import streamlit as st
 from streamlit_option_menu import option_menu
+from streamlit import components
 
 import spacy
 import spacy_fastlang
 
 import tflite_runtime.interpreter as tflite
-from PIL import Image, ImageOps, ImageFilter, ImageDraw
+from keras.applications.vgg16 import preprocess_input as preprocess_input_vgg16
+# from sklearn.cluster import KMeans
+# from keras.models import load_model
+
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
+from PIL import Image, ImageOps, ImageFilter, ImageDraw
 import cv2
 import seaborn as sns
-
-from sklearn.cluster import KMeans
-
-from keras.applications.vgg16 import preprocess_input as preprocess_input_vgg16
-from keras.models import load_model
+import pyLDAvis.gensim_models
 
 ##################################################
 # Topic Modelling : functions & variables
@@ -38,10 +39,10 @@ nlp.add_pipe("language_detector")
 @st.cache(allow_output_mutation=True)
 def load_lda():
     print("LOADING the LDA model and the associated dictionnary")
-    (dictionary, lda_model, topic_labels) = joblib.load(
-        os.path.join("models", "lda.pipeline")
+    (dictionary, lda_model, topic_labels, corpus_bow) = joblib.load(
+        os.path.join("models", "lda_vis.pipeline")
     )
-    return dictionary, lda_model, topic_labels
+    return dictionary, lda_model, topic_labels, corpus_bow
 
 
 # Define required functions
@@ -727,6 +728,7 @@ def show_text_feature_extraction():
             "Avant traitement",
             "Après tokenisation + filtrage + lemmatization",
             "Après suppression des extrêmes (en fréquence)",
+            "Application d'une LDA sur le corpus préparé",
         ),
     )
 
@@ -798,6 +800,23 @@ def show_text_feature_extraction():
             st.image(img1)
             st.write(txt1)
 
+    elif option == "Application d'une LDA sur le corpus préparé":
+        txt1 = """
+        >### Les topics identifés sont:
+        > - 1: "La qualité du service",
+        > - 2: "La qualité des produits proposés",
+        > - 3: "Une déception dans un établissement apprécié",
+        """
+
+        with col2:
+            st.write(txt1)
+
+        lda_display = pyLDAvis.gensim_models.prepare(lda_model, corpus_bow, dictionary)
+        # pyLDAvis.display(lda_display)
+
+        html_string = pyLDAvis.prepared_data_to_html(lda_display)
+        components.v1.html(f"<body style='background-color:white;'>{html_string}</body>", width=1300, height=800)
+
 
 # --- Side bar ---
 
@@ -815,12 +834,12 @@ with st.sidebar:
         default_index=0,
     )
 
+global dictionary, lda_model, topic_labels, corpus_bow
+
 if selected == "Topic Modelling":
     st.write("## Topic Modelling")
 
-    global dictionary, lda_model, topic_labels
-    # nlp = load_nlp()
-    dictionary, lda_model, topic_labels = load_lda()
+    dictionary, lda_model, topic_labels, corpus_bow = load_lda()
 
     show_topic_modelling()
 
@@ -854,13 +873,7 @@ elif selected == "CNN Feature Extraction":
 
 else:
     st.write("## Préparation des documents")
+
+    dictionary, lda_model, topic_labels, corpus_bow = load_lda()
+
     show_text_feature_extraction()
-
-
-## Test zone
-
-# tsne_data, tsne_model = joblib.load(pathlib.Path("data", "tsne_Kmeans_SIFT.bin"))
-
-# test_X = pd.DataFrame([ 16.,   3.,   1.,   2.,   6.,  49.,  69.,  75.,  34.,  21.,  11., 0.,   0.,  29., 119., 122.,   8.,   5.,   8.,   0.,   1., 122., 122.,  28.,  62.,  10.,   7.,   1.,   1.,  36.,  52.,  44.,  51., 13.,   4.,   1.,   3.,  10.,  27.,  32.,  38., 102., 122.,  10., 9.,  18.,  13.,  33.,  88., 117.,  71.,   1.,   1.,  61.,  46., 12.,  20.,   3.,   2.,   1.,   2., 122.,  94.,   9.,  83.,  21., 1.,   1.,   2.,  19.,   9.,  14.,  19.,  11.,  14.,   5.,  10., 78.,  35.,  21., 122.,  37.,   5.,   0.,   0.,   5.,  14.,  55., 75.,   7.,   0.,   0.,   0.,  21.,  34.,  10.,  45., 122.,   6., 0.,   0.,   2.,   1.,   1.,  14.,  38.,   7.,   0.,   1.,  14., 9.,   4.,  86.,  83.,   0.,   0.,   2.,   3.,   4.,   8.,  42., 90.,   1.,   0.,   0.,   0.,   0.,   1.])
-
-# plot_TNSE_with_new_points(tsne_model, tsne_data, test_X.to_numpy().T)
