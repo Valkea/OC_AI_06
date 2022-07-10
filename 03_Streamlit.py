@@ -20,8 +20,8 @@ from PIL import Image, ImageOps, ImageFilter  # , ImageDraw
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
-# from keras.applications.vgg16 import preprocess_input as preprocess_input_vgg16
-
+from keras.applications.vgg16 import preprocess_input as preprocess_input_vgg16
+from keras.models import load_model
 
 ##################################################
 # Topic Modelling : functions & variables
@@ -212,6 +212,8 @@ def get_top_id(row):
 
 # --- Load CNN feature extractor
 CNN_feature_extractor = joblib.load(pathlib.Path("models", "feature_extractor_CNN.bin"))
+# CNN_feature_extractor = load_model(pathlib.Path("models", "feature_extractor_CNN.h5"))
+# CNN_feature_extractor.load_weights(pathlib.Path("models", "feature_extractor_CNN_weights.hdf5"))
 
 # --- Load t-SNE model & data for trained CNN
 tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels = joblib.load(
@@ -220,7 +222,8 @@ tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels = joblib.
 
 # --- Load TF-Lite model using an interpreter
 CNN_classifier = tflite.Interpreter(
-    model_path=str(pathlib.Path("models", "vgg16_clf10.tflite"))
+        model_path=str(pathlib.Path("models", "vgg16_clf1_vca:0.85.tflite"))
+        # model_path=str(pathlib.Path("models", "vgg16_clf2_vca:0.87.tflite"))
 )
 CNN_classifier.allocate_tensors()
 input_index = CNN_classifier.get_input_details()[0]["index"]
@@ -337,7 +340,7 @@ def predict_category(img):
     """
 
     img = np.array(img, np.float32)
-    # img = preprocess_input_vgg16(img)
+    img = preprocess_input_vgg16(img)
 
     # Apply model
     CNN_classifier.set_tensor(input_index, [img])
@@ -492,7 +495,7 @@ def show_image_classification():
         accept_multiple_files=True,
         type=["jpg", "jpeg", "png"],
     )
-    show_preprocess = st.checkbox("Afficher les étapes de pré-traitement", value=True)
+    show_preprocess = st.checkbox("Afficher les étapes de pré-traitement", value=False)
 
     for i, uploaded_file in enumerate(uploaded_files):
         st.write(f"---  \n#### Input #{i+1}")
@@ -516,7 +519,7 @@ def show_image_classification():
             )
 
 
-def show_image_classification_eda():
+def show_image_feature_extraction():
     uploaded_files = st.file_uploader(
         "Choissisez une ou plusieurs images à analyser",
         accept_multiple_files=True,
@@ -546,6 +549,7 @@ def show_image_classification_eda():
             labels=tsne_CNN_trained_labels,
             color_target="category",
             title="t-SNE des features extraites du CNN",
+            alpha=0.75,
         )
 
 
@@ -567,7 +571,7 @@ elif selected == "Image Classification":
     show_image_classification()
 else:
     st.write("---  \n## Extraction des features avec le CNN")
-    show_image_classification_eda()
+    show_image_feature_extraction()
 
 
 ## Test zone
