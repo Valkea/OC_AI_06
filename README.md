@@ -1,23 +1,24 @@
-# Topic Modelling & Image Classification ("Améliorez le produit IA de votre start-up")
+# Topic Modelling & Image Classification
+## ("Améliorez le produit IA de votre start-up")
 
 [This project is part of the AI Engineer cursus on OpenClassrooms]
 
-We are provided with a dataset from [Yelp](https://www.yelp.com/dataset) containing:
-- information about **150.346 businesses** of any kind. 
-- **6.990.280 reviews** wrote by **1.987.897 users** about those businesses.
-- **200 100 pictures** of foods, drinks, interiors, exteriors and menus taken by the users.
+We are provided with a dataset from [Yelp](https://www.yelp.com/dataset) containing **6.990.280 reviews** wrote by **1.987.897 users** about **150.346 businesses** of any kind. We can also use **200 100 pictures** of foods, drinks, interiors, exteriors and menus taken by the users.
 
-> The purpose of this project is to train on the 3 following features:
+>#### The purpose of this project is to train on the 3 following features:
 > - **detect topics of dissatisfaction** in the comments published on the platform.
 > - **automatically label the photos** posted on the platform.
 > - **collect new reviews** using the Yelp API.
 
-1. At first, we will conduce an EDA for the Topic Modelling and try LDA and NMF modelling (01_Topic_Modelling.ipynb)
-![alt text](medias/steps.png)
-2. Then we will conduce an EDA for the Image Classification problem and optionnaly try to implement a model (04_Image_Classification.ipynb)
-![alt text](medias/bovw_process.jpeg)
-3. After that, will develop a python script to gather new reviews from the Yelp API (02_API_Scrapping.py)
-4. And finally, we will procude a custum dashbord to present and try the various solutions (03_Streamlit.py)
+1. At first, we will conduce an EDA for the Topic Modelling and try LDA and NMF modelling *(01_Topic_Modelling.ipynb)*
+<img src="medias/steps.png" alt="Topic Modelling steps" width="400"/>
+2. Then we will conduce an EDA for the feature extraction and Image Classification problem and optionnaly try to implement a model *(04_Image_Classification.ipynb)*
+<img src="medias/bovw_process.jpeg" alt="Bag of Visual Words steps" width="400"/>
+3. After that, will develop a python script to gather new reviews from the Yelp API *(02_API_Scrapping.py)*
+4. And finally, we will procude a custum dashbord to present and try the various solutions *(03_Streamlit.py)*
+
+---
+
 
 ## Running the notebooks online
 
