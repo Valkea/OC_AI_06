@@ -111,6 +111,15 @@ So once the notebooks are opened (see below), prior to running it, follow this s
 >>> streamlit run 03_Streamlit.py
 ```
 
+> ⚠️ Unfortunately, to run the streamlit app with all feateres, we need the models and as they are quite heavy they aren't pushed to GitHub. So in order to run this app, you first need to run both notebook to export the models (they will automatically export), and convert the VGG16 produced model to a TF-lite model.
+> ```bash
+> >>> cd models
+> >>> python model_convert_to_TFLite.py vgg16_clf1.h5 vgg16_clf1.epochXX-categorical_accuracyX.XX.hdf5 # replace XX with the best produced model values
+> >>> mv vgg16_clf1.tflite vgg_15_clf.tflite
+> >>> cd ..
+> ```
+> Without the models, the streamlit app will still work, but some sections might not work correctly.
+
 3. finally, one can *collect new reviews* using the following script:
 ```bash
 >>> python 02_API_Scrapping.py # this will gather "200" new reviews from "France" and save them to "data/api_export.csv"
