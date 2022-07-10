@@ -251,8 +251,7 @@ def load_CNN_classifier():
 
     global CNN_classifier, input_index, output_index
     CNN_classifier = tflite.Interpreter(
-        model_path=str(pathlib.Path("models", "vgg16_clf1_vca:0.85.tflite"))
-        # model_path=str(pathlib.Path("models", "vgg16_clf2_vca:0.87.tflite"))
+        model_path=str(pathlib.Path("models", "vgg16_clf.tflite"))
     )
     CNN_classifier.allocate_tensors()
     input_index = CNN_classifier.get_input_details()[0]["index"]
