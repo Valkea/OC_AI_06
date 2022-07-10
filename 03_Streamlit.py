@@ -578,20 +578,31 @@ def show_image_feature_extraction():
 def show_text_feature_extraction():
     option = st.selectbox(
      'Les wordclouds aux différentes étapes',
-     ('Sans traitement', 'Après tokenisation + filtrage + lemmatization', 'Après suppression des extrêmes (en fréquence)'))
+     ('Avant traitement', 'Après tokenisation + filtrage + lemmatization', 'Après suppression des extrêmes (en fréquence)'))
 
     col1, col2, col3 = st.columns([1, 2, 1])
 
     #st.write('You selected:', option)
-    if option == 'Sans traitement':
-        image = Image.open(pathlib.Path("medias", "wordcloud1.png"))
-        texte = """
+    if option == 'Avant traitement':
+
+        img1 = Image.open(pathlib.Path("medias", "wordcloud1.png"))
+        img2 = Image.open(pathlib.Path("medias", "stars1.png"))
+        img3 = Image.open(pathlib.Path("medias", "stars2.png"))
+        txt1 = """
         >### Nous avons commencé par faire une sélection de 10.000 documents dont les évaluations *(stars)* étaient de 1 ou 2.
         """
 
+        with col2:
+            st.image(img1)
+            st.write(txt1)
+            st.write("Répartition des notes pour les 150.346 documents d'origine")
+            st.image(img2)
+            st.write("Répartition des notes après sélection de 10.000 documents au hasard")
+            st.image(img3)
+
     elif option == 'Après tokenisation + filtrage + lemmatization':
-        image = Image.open(pathlib.Path("medias", "wordcloud2.png"))
-        texte = """
+        img1 = Image.open(pathlib.Path("medias", "wordcloud2.png"))
+        txt1 = """
         >### Tokenisation
         > Cette étape consiste à découper les phrases ou documents en mot individuels ou en bloc de mots *(bigrammes, trigrammes, etc.)*. Se faisant, nous constituons un **corpus vocabulary** qui peut être utilisé de plusieurs façon *(Bags of Words, TF-IDF, Word2Vec...)*
         >#### Lors de cette étape nous avons également supprimé:
@@ -611,9 +622,14 @@ def show_text_feature_extraction():
         >### Lematisation
         > Cette étape consiste à chercher la raçine commune des mots en utilisant le contexte *(alors que les stem eux n'utilisent pas le contexte)*. Se faisant, nous rapprochons des mots qui pourraient sinon être considérés comme différents par nos algorithmes.
         """
+
+        with col2:
+            st.image(img1)
+            st.write(txt1)
+
     elif option == 'Après suppression des extrêmes (en fréquence)':
-        image = Image.open(pathlib.Path("medias", "wordcloud3.png"))
-        texte = """
+        img1 = Image.open(pathlib.Path("medias", "wordcloud3.png"))
+        txt1 = """
         >### A ce stade, nous avons appliqué un filtre sur la fréquence des mots:
         > - On a supprimé les mots qui apparaissent dans moins de 5 documents
         > - On a supprime les mots qui apparaissent dans plus de 50% des documents
@@ -626,10 +642,9 @@ def show_text_feature_extraction():
         > Ces trois réprésentations ont été utilisés pour essayer différentes variantes des algorithmes `Latent Dirichlet Allocation (LDA)` et `Negative Matrix Factorisation (NMF)` 
         """
 
-    with col2:
-        st.image(image)
-        st.write(texte)
-
+        with col2:
+            st.image(img1)
+            st.write(txt1)
 
 # --- Side bar ---
 
