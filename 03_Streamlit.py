@@ -27,14 +27,17 @@ from keras.models import load_model
 # Topic Modelling : functions & variables
 ##################################################
 
-# Initialize the spacy nlp pipeline
 nlp = spacy.load("en_core_web_sm")
 nlp.add_pipe("language_detector")
 
-# Load the LDA model and the associated dictionnary
-(dictionary, lda_model, topic_labels) = joblib.load(
-    os.path.join("data", "lda.pipeline")
-)
+
+@st.cache(allow_output_mutation=True)
+def load_lda():
+    # Load the LDA model and the associated dictionnary
+    (dictionary, lda_model, topic_labels) = joblib.load(
+        os.path.join("data", "lda.pipeline")
+    )
+    return dictionary, lda_model, topic_labels
 
 
 # Define required functions
@@ -210,28 +213,46 @@ def get_top_id(row):
 # Image Classification : functions & variables
 ##################################################
 
-# --- Load CNN feature extractor
-CNN_feature_extractor = joblib.load(pathlib.Path("models", "feature_extractor_CNN.bin"))
-# CNN_feature_extractor = load_model(pathlib.Path("models", "feature_extractor_CNN.h5"))
-# CNN_feature_extractor.load_weights(pathlib.Path("models", "feature_extractor_CNN_weights.hdf5"))
 
-# --- Load t-SNE model & data for trained CNN
-tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels = joblib.load(
-    pathlib.Path("models", "tsne_CNN_trained_dual.bin")
-)
+@st.cache(allow_output_mutation=True)
+def load_feature_extractor():
+    print("LOADING feature extractor")
 
-# --- Load TF-Lite model using an interpreter
-CNN_classifier = tflite.Interpreter(
-        model_path=str(pathlib.Path("models", "vgg16_clf1_vca:0.85.tflite"))
-        # model_path=str(pathlib.Path("models", "vgg16_clf2_vca:0.87.tflite"))
-)
-CNN_classifier.allocate_tensors()
-input_index = CNN_classifier.get_input_details()[0]["index"]
-output_index = CNN_classifier.get_output_details()[0]["index"]
+    CNN_feature_extractor = joblib.load(pathlib.Path("models", "feature_extractor_CNN.bin"))
+    # CNN_feature_extractor = load_model(pathlib.Path("models", "feature_extractor_CNN.h5"))
+    # CNN_feature_extractor.load_weights(pathlib.Path("models", "feature_extractor_CNN_weights.hdf5"))
 
+    return CNN_feature_extractor
+
+@st.cache(allow_output_mutation=True)
+def load_CNN_tsne():
+    print("LOADING CNN t-sne")
+
+    tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels = joblib.load(
+        pathlib.Path("models", "tsne_CNN_trained_dual.bin")
+    )
+
+    return tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels
+
+@st.cache
+def load_CNN_classifier():
+
+    global CNN_classifier, input_index, output_index 
+    CNN_classifier = tflite.Interpreter(
+            model_path=str(pathlib.Path("models", "vgg16_clf1_vca:0.85.tflite"))
+            # model_path=str(pathlib.Path("models", "vgg16_clf2_vca:0.87.tflite"))
+    )
+    CNN_classifier.allocate_tensors()
+    input_index = CNN_classifier.get_input_details()[0]["index"]
+    output_index = CNN_classifier.get_output_details()[0]["index"]
+
+    return CNN_classifier, input_index, output_index
+
+
+# --- Define labels
+# collected from validation_flow.class_indices.keys()
 categories = ["drink", "food", "inside", "menu", "outside"]
 categories_fr = ["boisson", "nourriture", "intérieur", "menu", "extérieur"]
-# collected from validation_flow.class_indices.keys()
 
 
 def preprocess_image_show(steps_show, steps_name):
@@ -553,25 +574,55 @@ def show_image_feature_extraction():
         )
 
 
+def show_text_feature_extraction():
+    option = st.selectbox(
+     'Les wordclouds aux différentes étapes',
+     ('Sans traitement', 'Après tokenisation + filtrage + lemmatization', 'Après suppression des extrêmes (en fréquence)'))
+
+    st.write('You selected:', option)
+
+
 # --- Side bar ---
 
 with st.sidebar:
     selected = option_menu(
         menu_title="Menu",
-        options=["Topic Modelling", "CNN Feature Extraction", "Image Classification"],
-        icons=["newspaper", "list-task", "camera"],
+        options=["TXT Feature Extraction", "Topic Modelling", "CNN Feature Extraction", "Image Classification"],
+        icons=["list-task", "newspaper", "list-task", "camera"],
         default_index=0,
     )
 
 if selected == "Topic Modelling":
     st.write("---  \n## Topic Modelling")
+
+    global dictionary, lda_model, topic_labels
+    #nlp = load_nlp()
+    dictionary, lda_model, topic_labels = load_lda()
+
     show_topic_modelling()
+
 elif selected == "Image Classification":
     st.write("---  \n## Classification des images utilisateur")
+
+    global CNN_classifier, input_index, output_index
+    CNN_classifier, input_index, output_index = load_CNN_classifier()
+
     show_image_classification()
-else:
+
+elif selected == "CNN Feature Extraction":
     st.write("---  \n## Extraction des features avec le CNN")
+
+    global CNN_feature_extractor
+    CNN_feature_extractor = load_feature_extractor()
+
+    global tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels
+    tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels = load_CNN_tsne()
+
     show_image_feature_extraction()
+
+else:
+    st.write("---  \n## Préparation des documents")
+    show_text_feature_extraction()
 
 
 ## Test zone
