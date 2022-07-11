@@ -10,10 +10,8 @@ We are provided with a dataset from [Yelp](https://www.yelp.com/dataset) contain
 > - **automatically label the photos** posted on the platform.
 > - **collect new reviews** using the Yelp API.
 
-1. At first, we will conduce an EDA for the Topic Modelling and try LDA and NMF modelling *(01_Topic_Modelling.ipynb)*
-<img src="medias/steps.png" alt="Topic Modelling steps" width="400"/>
-2. Then we will conduce an EDA for the feature extraction and Image Classification problem and optionnaly try to implement a model *(04_Image_Classification.ipynb)*
-<img src="medias/bovw_process.jpeg" alt="Bag of Visual Words steps" width="400"/>
+1. At first, we will conduce an EDA for the Topic Modelling and try LDA and NMF modelling *(01_Topic_Modelling.ipynb)* <br><img src="medias/steps.png" alt="Topic Modelling steps" width="400"/>
+2. Then we will conduce an EDA for the feature extraction and Image Classification problem and optionnaly try to implement a model *(04_Image_Classification.ipynb)* <br><img src="medias/bovw_process.jpeg" alt="Bag of Visual Words steps" width="400"/>
 3. After that, will develop a python script to gather new reviews from the Yelp API *(02_API_Scrapping.py)*
 4. And finally, we will procude a custum dashbord to present and try the various solutions *(03_Streamlit.py)*
 
