@@ -750,6 +750,7 @@ def show_text_feature_extraction():
             "Avant traitement",
             "Après tokenisation + filtrage + lemmatization",
             "Après suppression des extrêmes (en fréquence)",
+            "Application d'une NMF sur le corpus préparé",
             "Application d'une LDA sur le corpus préparé",
         ),
     )
@@ -822,6 +823,48 @@ def show_text_feature_extraction():
             st.image(img1)
             st.write(txt1)
 
+    elif option == "Application d'une NMF sur le corpus préparé":
+
+        txt1 = """
+        ### Negative Matrix Factorisation *(NMF)*
+        C'est une méthode non supervisée, qui décompose *(ou factorise)* des vecteurs de haute dimension en une représentation de plus faible dimension.
+        Ces vecteurs *(de haute dimension ou de dimension inférieure)* sont non négatifs, ce qui signifie également que leurs coefficients sont non négatifs.
+        En utilisant la matrice originale *(X)*, la NMF donnera deux matrices *(W et H)*.
+        """
+
+        txt2 = """
+        > On peut intérpréter ces matrices comme suit:
+        > - `X` **représente les articles par mots**,
+        > - `W` **représente les articles par sujets** (c.a.d. les sujets trouvés).
+        > - `H` **représente les sujets par mots.** (c.a.d. les coefficients des sujets trouvés).
+        """
+
+        txt3 = """
+        ### Les topics identifés sont:
+        > - 1: "le temps de service / de livraison"
+        > - 2: "le temps d'attente en salle"
+        > - 3: "le rapport qualité / prix"
+        > - 4: "une déception dans un établissement apprécié"
+        > - 5: "la qualité des produits proposés"
+        > - 6: "la qualité des entrées / cocktails"
+        > - 7: "le comportement du personnel"
+        """
+
+        img1 = Image.open(pathlib.Path('medias', 'NMF_process.png'))
+        img2 = Image.open(pathlib.Path('medias', 'NMF_coherence_cv_bow.png'))
+        img3 = Image.open(pathlib.Path('medias', 'NMF_coherence_cv_tfidf.png'))
+
+        with col2:
+            st.write(txt1)
+            st.image(img1)
+            st.write(txt2)
+            st.write("### Recherche du nombre de sujets avec le score de cohérence")
+            st.write("#### Score de cohérence *(c_v*) avec le `corpus BoW`")
+            st.image(img2)
+            st.write("#### Score de cohérence *(c_v*) avec le `corpus TF-IDF`")
+            st.image(img3)
+            st.write(txt3)
+
     elif option == "Application d'une LDA sur le corpus préparé":
 
         txt1 = """
@@ -838,18 +881,23 @@ def show_text_feature_extraction():
         """
 
         txt2 = """
-        >### Les topics identifés sont:
+        ### Les topics identifés sont:
         > - 1: "La qualité du service",
         > - 2: "La qualité des produits proposés",
         > - 3: "Une déception dans un établissement apprécié",
         """
 
         img1 = Image.open(pathlib.Path('medias', 'LDA_process.png'))
+        img2 = Image.open(pathlib.Path('medias', 'LDA_coherence_cv_bow.png'))
 
         with col2:
             st.write(txt1)
             st.image(img1)
+            st.write("### Recherche du nombre de sujets avec le score de cohérence")
+            st.write("#### Score de cohérence *(c_v*) avec le `corpus BoW`")
+            st.image(img2)
             st.write(txt2)
+        st.write("### Visualisation avec pyLDAvis")
 
         lda_display = pyLDAvis.gensim_models.prepare(lda_model, corpus_bow, dictionary)
         # pyLDAvis.display(lda_display)
