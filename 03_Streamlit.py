@@ -245,6 +245,19 @@ def load_CNN_tsne():
     return tsne_CNN_trained_data, tsne_CNN_trained_model, tsne_CNN_trained_labels
 
 
+@st.cache(allow_output_mutation=True)
+def load_SIFT_tsne():
+    print("LOADING SIFT t-sne")
+
+    (
+        tsne_SIFT_trained_data,
+        tsne_SIFT_trained_model,
+        tsne_SIFT_trained_labels,
+    ) = joblib.load(pathlib.Path("models", "tsne_SIFT_dual.bin"))
+
+    return tsne_SIFT_trained_data, tsne_SIFT_trained_model, tsne_SIFT_trained_labels
+
+
 @st.cache
 def load_CNN_classifier():
     print("LOADING CNN classifier")
@@ -544,6 +557,8 @@ def preprocess_image_SIFT(img, num_clusters=95):
     st.pyplot(fig)
     st.dataframe(select.T)
 
+    return select
+
 
 ##################################################
 # Streamlit design
@@ -706,18 +721,26 @@ def show_image_feature_extraction_SIFT():
             with col2:
                 st.image([bytes_data, final_img], width=350)
 
-        # pred_img = np.array(final_img, np.float32)
-        # pred_img = np.expand_dims(pred_img, axis=0)
-        preprocess_image_SIFT(final_img)
+        bovw = preprocess_image_SIFT(final_img)
+        bovw = np.expand_dims(bovw, axis=0)
 
-    if uploaded_files:
-        st.write("---")
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col2:
-            st.write("#### Cependant, on peut voir sur le t-SNE ci-dessous qu'avec ce nombre de visual-words dans le BoVW il est difficile de distinguer les catégories...")
-            img1 = Image.open(pathlib.Path("medias", "t-SNE-SIFT95.png"))
-            st.image(img1)
-    
+        plot_TNSE_with_new_points(
+            tsne_SIFT_trained_model,
+            tsne_SIFT_trained_data,
+            bovw,
+            labels=tsne_SIFT_trained_labels,
+            color_target="category",
+            title="t-SNE des features extraites du CNN",
+            alpha=0.75,
+        )
+
+    # if uploaded_files:
+    #     st.write("---")
+    #     col1, col2, col3 = st.columns([1, 1, 1])
+    #     with col2:
+    #         st.write("#### Cependant, on peut voir sur le t-SNE ci-dessous qu'avec ce nombre de visual-words dans le BoVW il est difficile de distinguer les catégories...")
+    #         img1 = Image.open(pathlib.Path("medias", "t-SNE-SIFT95.png"))
+    #         st.image(img1)
 
 
 def show_text_feature_extraction():
@@ -871,6 +894,13 @@ elif selected == "Image Classification":
 
 elif selected == "SIFT Feature Extraction":
     st.write("## Extraction des features avec SIFT")
+
+    global tsne_SIFT_trained_data, tsne_SIFT_trained_model, tsne_SIFT_trained_labels
+    (
+        tsne_SIFT_trained_data,
+        tsne_SIFT_trained_model,
+        tsne_SIFT_trained_labels,
+    ) = load_SIFT_tsne()
 
     show_image_feature_extraction_SIFT()
 
