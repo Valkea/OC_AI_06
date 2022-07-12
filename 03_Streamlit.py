@@ -825,11 +825,12 @@ with st.sidebar:
         options=[
             "TXT Feature Extraction",
             "Topic Modelling",
+            "---",
             "SIFT Feature Extraction",
             "CNN Feature Extraction",
             "Image Classification",
         ],
-        icons=["", "newspaper", "", "", "camera"],
+        icons=["", "newspaper", "", "", "", "camera"],
         default_index=0,
     )
 
