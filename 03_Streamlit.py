@@ -740,7 +740,7 @@ def show_text_feature_extraction():
         img2 = Image.open(pathlib.Path("medias", "stars1.png"))
         img3 = Image.open(pathlib.Path("medias", "stars2.png"))
         txt1 = """
-        >### Nous avons commencé par faire une sélection de 10.000 documents dont les évaluations *(stars)* étaient de 1 ou 2.
+        ### Nous avons commencé par faire une sélection de 10.000 documents dont les évaluations *(stars)* étaient de 1 ou 2.
         """
 
         with col2:
@@ -756,13 +756,13 @@ def show_text_feature_extraction():
     elif option == "Après tokenisation + filtrage + lemmatization":
         img1 = Image.open(pathlib.Path("medias", "wordcloud2.png"))
         txt1 = """
-        >### Tokenisation
+        ### Tokenisation
         > Cette étape consiste à découper les phrases ou documents en mot individuels ou en bloc de mots *(bigrammes, trigrammes, etc.)*. Se faisant, nous constituons un **corpus vocabulary** qui peut être utilisé de plusieurs façon *(Bags of Words, TF-IDF, Word2Vec...)*
         >#### Lors de cette étape nous avons également supprimé:
         > - les majuscules,
         > - les espaces en début et fin de texte,
 
-        >### Filtrage
+        ### Filtrage des tokens
         > Cette étape consiste à supprimer les tokens qui n'ont pas de valeur ajouté pour notre futur modèle, donc des mots qui ne transportent pas d'information utile pour le projet.
         >#### Lors de cette étape nous avons donc supprimé:
         > - tout ce qui n'est pas détecté comme étant de l'anglais *(language & language_score)*,
@@ -772,8 +772,8 @@ def show_text_feature_extraction():
         > - les chiffres *(is_alpha)*,
         > - mais aussi les beaucoup d'autres tags peu utiles dans ce cas *(ADV, AUX, CONJ, CCONJ, DET, PART, PRON, PROPN, SCONJ, SYM)*.
 
-        >### Lematisation
-        > Cette étape consiste à chercher la raçine commune des mots en utilisant le contexte *(alors que les stem eux n'utilisent pas le contexte)*. Se faisant, nous rapprochons des mots qui pourraient sinon être considérés comme différents par nos algorithmes.
+        ### Lemmatisation
+        > Cette étape consiste à chercher la raçine commune des mots en utilisant le contexte *(alors que le stemming n'utilise pas le contexte)*. Se faisant, nous rapprochons des mots qui pourraient sinon être considérés comme différents par nos algorithmes.
         """
 
         with col2:
@@ -783,11 +783,11 @@ def show_text_feature_extraction():
     elif option == "Après suppression des extrêmes (en fréquence)":
         img1 = Image.open(pathlib.Path("medias", "wordcloud3.png"))
         txt1 = """
-        >### A ce stade, nous avons appliqué un filtre sur la fréquence des mots:
+        ### Filtrage des lemmes selon leur fréquence
         > - On a supprimé les mots qui apparaissent dans moins de 5 documents
         > - On a supprime les mots qui apparaissent dans plus de 50% des documents
 
-        >### Passé ces étapes, nous avons pu construire trois représentation de nos documents:
+        ### Préparation de trois représentations *numériques"* des documents
         > - Le `Corpus - Bag Of Word` qui contient une liste *(un BoW pour chaque document)* de *term vectors* qui indiquent la fréquence de chaque mot du *vocabulaire*.
         > - Le `Corpus - TF-IDF` qui est une version normalisée du Bag-Of-Words pour éviter que des mots sans importance mais fréquents ne prennent trop d'importance.
         > - Le `Corpus - Word2vec` associe un vecteur à chaque mot du *vocabulaire* au lieu d'une valeur de fréquence (normalisée ou non). Cett particularité permet de retrouver plus facilement des mots similaires *( Homme --> Chercheur | Femme --> ? --> Chercheuse)*.
@@ -800,21 +800,39 @@ def show_text_feature_extraction():
             st.write(txt1)
 
     elif option == "Application d'une LDA sur le corpus préparé":
+
         txt1 = """
+        ### Latent Dirichlet Allocation *(LDA)*
+        C'est une méthode non-supervisée générative vraiment efficace qui se base sur les hypothèses suivantes :
+        - Chaque document du corpus est un ensemble de mots sans ordre (bag-of-words)
+        - Chaque document *m* aborde un certain nombre de thèmes dans différentes proportions qui lui sont propres *p(θm)*
+        - Chaque mot possède une distribution associée à chaque thème *p(ϕk)*. On peut ainsi représenter chaque thème par une probabilité sur chaque mot.
+        - *z_n* représente le thème du mot *w_n*
+
+        > ⚠️ "In fact, Blei (who developed LDA), points out in the introduction of the paper of 2003 (entitled "Latent Dirichlet Allocation") that LDA addresses the shortcomings of the TF-IDF model and leaves this approach behind. LSA is compeltely algebraic and generally (but not necessarily) uses a TF-IDF matrix, while LDA is a probabilistic model that tries to estimate probability distributions for topics in documents and words in topics. The weighting of TF-IDF is not necessary for this."
+        >
+        > ⚠️ Le modèle **TF-IDF peut améliorer les résultats d'un LDA** dans le cas d'un **nombre extrêmement important de documents**. Mais dans l'ensemble, le **Bag-Of-Words est plus approprié** pour le modèle LDA.
+        """
+
+        txt2 = """
         >### Les topics identifés sont:
         > - 1: "La qualité du service",
         > - 2: "La qualité des produits proposés",
         > - 3: "Une déception dans un établissement apprécié",
         """
 
+        img1 = Image.open(pathlib.Path('medias', 'LDA_process.png'))
+
         with col2:
             st.write(txt1)
+            st.image(img1)
+            st.write(txt2)
 
         lda_display = pyLDAvis.gensim_models.prepare(lda_model, corpus_bow, dictionary)
         # pyLDAvis.display(lda_display)
 
         html_string = pyLDAvis.prepared_data_to_html(lda_display)
-        components.v1.html(f"<body style='background-color:white;'>{html_string}</body>", width=1300, height=800)
+        components.v1.html(f"<body style='background-color:white'>{html_string}</body>", width=1300, height=800)
 
 
 # --- Side bar ---
