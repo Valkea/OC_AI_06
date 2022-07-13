@@ -1,0 +1,4 @@
+outs:
+- md5: 1c1d02c7b7339a768559091822996692
+  size: 537133800
+  path: vgg16_clf.tflite

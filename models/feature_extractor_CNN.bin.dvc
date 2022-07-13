@@ -1,0 +1,4 @@
+outs:
+- md5: 41b309ad4bfb1e7a9f21440fee38adba
+  size: 537426183
+  path: feature_extractor_CNN.bin
