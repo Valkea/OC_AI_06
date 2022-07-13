@@ -118,7 +118,7 @@ So once the notebooks are opened (see below), prior to running it, follow this s
 > >>> cd ..
 > ```
 >
-> OR Clone data and models from DagsHub using DVC *(you need DVC to be installed prior to using the following command line)*:
+> OR clone models from DagsHub using DVC *(you need to install [DVC](https://dvc.org) prior to using the following command line)*:
 > ```bash
 > >>> dvc pull -r origin
 > ```
