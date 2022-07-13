@@ -646,6 +646,7 @@ def show_image_classification():
         type=["jpg", "jpeg"],
     )
     show_preprocess = st.checkbox("Afficher les étapes de pré-traitement", value=False)
+    show_evaluation = st.checkbox("Afficher les évaluations du modèle", value=True)
 
     for i, uploaded_file in enumerate(uploaded_files):
         st.write(f"---  \n#### Input #{i+1}")
@@ -667,6 +668,70 @@ def show_image_classification():
                 unsafe_allow_html=True,
             )
 
+    if show_evaluation:
+
+        txt1 = """
+            ---
+            ### Modèle CNN #01
+            > - `Architecture` VGG16 ré-entrainé sur les derniers layers
+            > - `Train-set` de 800 images
+            > - `Test-set` de 200 images
+
+        """
+
+        txt2 = """
+        >       CATEGORIE   precision    recall      f1-score    support
+        >
+        >       drink       0.91        0.78        0.84        40
+        >       food        0.92        0.88        0.90        40
+        >       inside      0.68        0.85        0.76        40
+        >       menu        0.91        0.97        0.94        40
+        >       outside     0.83        0.72        0.77        40
+        > 
+        >       accuracy                            0.84       200
+        >       macro avg   0.85        0.84        0.84       200
+        >       weighted avg 0.85       0.84        0.84       200
+        """
+
+        txt3 = """
+            ---
+            ### Modèle CNN #02
+            > - `Architecture` VGG16 ré-entrainé sur les derniers layers
+            > - `Train-set` de 800 images **avec transformations au hasard**
+            > - `Test-set` de 200 images 
+
+        """
+
+        txt4 = """
+        >       CATEGORIE   precision    recall      f1-score    support
+        >
+        >       drink       0.92        0.90        0.91        40
+        >       food        0.97        0.90        0.94        40
+        >       inside      0.69        0.93        0.79        40
+        >       menu        0.93        0.95        0.94        40
+        >       outside     0.93        0.68        0.78        40
+        > 
+        >       accuracy                            0.87       200
+        >       macro avg   0.89        0.87        0.87       200
+        >       weighted avg 0.89       0.87        0.87       200
+        """
+
+        img1 = Image.open(pathlib.Path('medias', 'confusion_1.png'))
+        img2 = Image.open(pathlib.Path('medias', 'confusion_2.png'))
+
+        col1, col2 = st.columns([1, 1])
+        with col1:
+
+            st.write(txt1)
+            st.image(img1)
+            st.write(txt2)
+
+        with col2:
+
+            st.write(txt3)
+            st.image(img2)
+            st.write(txt4)
+
 
 def show_image_feature_extraction():
     uploaded_files = st.file_uploader(
@@ -675,6 +740,7 @@ def show_image_feature_extraction():
         type=["jpg", "jpeg"],
     )
     show_preprocess = st.checkbox("Afficher les étapes de pré-traitement", value=True)
+    show_evaluation = st.checkbox("Afficher les évaluations", value=True)
 
     for i, uploaded_file in enumerate(uploaded_files):
         st.write(f"---  \n#### Input #{i+1}")
@@ -701,6 +767,22 @@ def show_image_feature_extraction():
             alpha=0.75,
         )
 
+    if show_evaluation:
+        txt1 = """
+        ---
+        ### Évaluations 
+        > - Adjusted Rand Index = 0.99004
+        > - Silhouette score = 0.558
+        """
+
+        img1 = Image.open(pathlib.Path('medias', 'silhouette_CNN.png'))
+
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+
+            st.write(txt1)
+            st.image(img1)
+
 
 def show_image_feature_extraction_SIFT():
     uploaded_files = st.file_uploader(
@@ -709,6 +791,7 @@ def show_image_feature_extraction_SIFT():
         type=["jpg", "jpeg"],
     )
     show_preprocess = st.checkbox("Afficher les étapes de pré-traitement", value=True)
+    show_evaluation = st.checkbox("Afficher les évaluations", value=True)
 
     for i, uploaded_file in enumerate(uploaded_files):
         st.write(f"---  \n#### Input #{i+1}")
@@ -733,6 +816,23 @@ def show_image_feature_extraction_SIFT():
             title="t-SNE des features extraites du CNN",
             alpha=0.75,
         )
+
+    if show_evaluation:
+        txt1 = """
+        ---
+        ### Évaluations 
+        > - Adjusted Rand Index = 0.0706
+        > - Silhouette score = 0.068
+        """
+
+        img1 = Image.open(pathlib.Path('medias', 'silhouette_SIFT.png'))
+
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+
+            st.write(txt1)
+            st.image(img1)
+
 
     # if uploaded_files:
     #     st.write("---")
