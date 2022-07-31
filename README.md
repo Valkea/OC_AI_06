@@ -116,6 +116,7 @@ So once the notebooks are opened (see below), prior to running it, follow this s
 >
 >> **Clone the models from DagsHub** using DVC *(you need to install [DVC](https://dvc.org) prior to using the following command line)*:
 >> ```bash
+>> >>> dvc remote add origin https://dagshub.com/Valkea/OC_AI_06.dvc
 >> >>> dvc pull -r origin
 >> ```
 >
